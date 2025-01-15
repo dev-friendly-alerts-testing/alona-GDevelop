@@ -1,19 +1,31 @@
 name: Build
-on:
-  push:
-    branches:
-      - master
-  pull_request:
-    types: [opened, synchronize, reopened]
+
+on: [push, pull_request]
+
 jobs:
-  sonarqube:
-    name: SonarQube
+  build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v4
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up SonarQube Scanner
+      uses: sonarsource/sonarcloud-github-action@master
+      with:
+        args: "sonar.cfamily.build-wrapper-output=bw-output"
+
+    - name: Build and generate the compilation database
+      run: |
+        build-wrapper-linux-x86-64 --out-dir bw-output make clean all
+
+    - name: Run SonarQube Scanner
+      run: |
+        sonar-scanner \
+          -Dsonar.projectKey=your_project_key \
+          -Dsonar.organization=your_organization \
+          -Dsonar.host.url=https://sonarcloud.io \
+          -Dsonar.login=$SONAR_TOKEN \
+          -Dsonar.cfamily.compile-commands=bw-output/compile_commands.json
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
